@@ -122,11 +122,15 @@ Additional option to supply custom parameters to the transcoder (ffmpeg or avcon
     e.g. to transcode the media with an output video bitrate of 1000k
     %s -transcode -transcodeopts '-b:v 1000k' <file>
     
+Additional option to seek input video to a certain position (HH:mm:ss)
+    e.g. seek to one hour four minutes into the video
+    %s -transcode -seek 1:04:00 <file>
+    
 Additional option to specify the buffer size of the data returned from the transcoder. Increasing this can help when on a slow network.
     e.g. to specify a buffer size of 5 megabytes
     %s -transcode -transcodebufsize 5242880 <file>
     
-""" % ((script_name,) * 17)
+""" % ((script_name,) * 18)
 
 
 
@@ -210,12 +214,13 @@ class TranscodingRequestHandler(RequestHandler):
     transcoder_command = FFMPEG
     transcode_options = ""
     bufsize = 0
+    seek = ""
                     
     def write_response(self, filepath):
         if self.bufsize != 0:
             print "transcode buffer size:", self.bufsize
         
-        ffmpeg_command = self.transcoder_command % (filepath, self.transcode_options) 
+        ffmpeg_command = self.transcoder_command % (self.seek, filepath, self.transcode_options) 
         
         ffmpeg_process = subprocess.Popen(ffmpeg_command, stdout=subprocess.PIPE, shell=True, bufsize=self.bufsize)       
 
@@ -372,7 +377,7 @@ def get_mimetype(filename, ffprobe_cmd=None):
     
             
             
-def play(filename, transcode=False, transcoder=None, transcode_options=None, transcode_bufsize=0, device_name=None, server_port=None):
+def play(filename, transcode=False, transcoder=None, transcode_options=None, transcode_bufsize=0, device_name=None, server_port=None, seek=None):
     """ play a local file on the chromecast """
     
     print_ident()
@@ -413,6 +418,9 @@ def play(filename, transcode=False, transcoder=None, transcode_options=None, tra
                 
             if transcode_options is not None:    
                 req_handler.transcode_options = transcode_options
+
+            if seek is not None:
+                req_handler.seek = "-ss %s" % seek
                 
             req_handler.bufsize = transcode_bufsize
         else:
@@ -624,6 +632,9 @@ def run():
     # optional transcode options parm. if specified, these options will be passed to the transcoder
     transcode_options = get_named_arg_value("-transcodeopts", args)     
     
+    # optional input seek parm. if specified will be passed to the transcoder
+    seek = get_named_arg_value("-seek", args)
+    
     # optional transcode bufsize parm. if specified, the transcoder will buffer approximately this many bytes of output
     transcode_bufsize = get_named_arg_value("-transcodebufsize", args, integer=True) 
         
@@ -655,7 +666,7 @@ def run():
 
     elif args[0] == "-transcode":    
         arg2 = args[1]  
-        play(arg2, transcode=True, transcoder=transcoder, transcode_options=transcode_options, transcode_bufsize=transcode_bufsize, device_name=device_name, server_port=server_port)       
+        play(arg2, transcode=True, transcoder=transcoder, transcode_options=transcode_options, transcode_bufsize=transcode_bufsize, device_name=device_name, server_port=server_port, seek=seek)       
         
     elif args[0] == "-playurl":    
         arg2 = args[1]  
